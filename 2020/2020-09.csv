@@ -1,0 +1,14 @@
+﻿Sección,Subsección,Tipo,Propiedad EPM,Propiedad Compartido,Propiedad Cliente,Periodo Consumo
+Tarifa No Residencial,ESPD\*,Valor único,624.1,598.73,573.37,2020-09
+Tarifa No Residencial,Industrial y Comercial,Valor único,680.83,653.16,625.49,2020-09
+Tarifa No Residencial,Oficial y Exentos de Contribución,Valor único,567.36,544.3,521.24,2020-09
+Tarifa Residencial,Estrato 1,Rango 0 - CS,228.51,219.22,209.94,2020-09
+Tarifa Residencial,Estrato 1,Rango > CS,567.36,544.3,521.24,2020-09
+Tarifa Residencial,Estrato 2,Rango 0 - CS,285.64,274.03,262.42,2020-09
+Tarifa Residencial,Estrato 2,Rango > CS,567.36,544.3,521.24,2020-09
+Tarifa Residencial,Estrato 3,Rango 0 - CS,482.26,462.66,443.05,2020-09
+Tarifa Residencial,Estrato 3,Rango > CS,567.36,544.3,521.24,2020-09
+Tarifa Residencial,Estrato 4,Todo el consumo,567.36,544.3,521.24,2020-09
+Tarifa Residencial,Estrato 5 y 6,Todo el consumo,680.83,653.16,625.49,2020-09
+Tarifa Áreas Comunes,Con contribución,Valor único,680.83,653.16,625.49,2020-09
+Tarifa Áreas Comunes,Sin contribución,Valor único,567.36,544.3,521.24,2020-09

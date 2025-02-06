@@ -1,0 +1,14 @@
+﻿Sección,Subsección,Tipo,Propiedad EPM,Propiedad Compartido,Propiedad Cliente,Periodo Consumo
+Tarifa No Residencial,ESPD\*,Valor único,524.35,504.71,484.73,2016-06
+Tarifa No Residencial,Industrial y Comercial,Valor único,572.02,550.59,528.79,2016-06
+Tarifa No Residencial,Oficial y Exentos de Contribución,Valor único,476.68,458.83,440.66,2016-06
+Tarifa Residencial,Estrato 1,Rango 0 - CS,190.67,183.53,176.26,2016-06
+Tarifa Residencial,Estrato 1,Rango > CS,476.68,458.83,440.66,2016-06
+Tarifa Residencial,Estrato 2,Rango 0 - CS,238.34,229.41,220.33,2016-06
+Tarifa Residencial,Estrato 2,Rango > CS,476.68,458.83,440.66,2016-06
+Tarifa Residencial,Estrato 3,Rango 0 - CS,405.18,390.0,374.56,2016-06
+Tarifa Residencial,Estrato 3,Rango > CS,476.68,458.83,440.66,2016-06
+Tarifa Residencial,Estrato 4,Todo el consumo,476.68,458.83,440.66,2016-06
+Tarifa Residencial,Estrato 5 y 6,Todo el consumo,572.02,550.59,528.79,2016-06
+Tarifa Áreas Comunes,Con contribución,Valor único,572.02,550.59,528.79,2016-06
+Tarifa Áreas Comunes,Sin contribución,Valor único,476.68,458.83,440.66,2016-06

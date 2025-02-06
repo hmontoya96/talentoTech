@@ -1,0 +1,14 @@
+﻿Sección,Subsección,Tipo,Propiedad EPM,Propiedad Compartido,Propiedad Cliente,Periodo Consumo
+Tarifa No Residencial,ESPD\*,Valor único,844.0,809.69,775.39,2022-09
+Tarifa No Residencial,Industrial y Comercial,Valor único,920.72,883.3,845.88,2022-09
+Tarifa No Residencial,Oficial y Exentos de Contribución,Valor único,767.27,736.09,704.9,2022-09
+Tarifa Residencial,Estrato 1,Rango 0 - CS,308.2,295.67,283.15,2022-09
+Tarifa Residencial,Estrato 1,Rango > CS,767.27,736.09,704.9,2022-09
+Tarifa Residencial,Estrato 2,Rango 0 - CS,385.25,369.59,353.93,2022-09
+Tarifa Residencial,Estrato 2,Rango > CS,767.27,736.09,704.9,2022-09
+Tarifa Residencial,Estrato 3,Rango 0 - CS,652.18,625.67,599.17,2022-09
+Tarifa Residencial,Estrato 3,Rango > CS,767.27,736.09,704.9,2022-09
+Tarifa Residencial,Estrato 4,Todo el consumo,767.27,736.09,704.9,2022-09
+Tarifa Residencial,Estrato 5 y 6,Todo el consumo,920.72,883.3,845.88,2022-09
+Tarifa Áreas Comunes,Con contribución,Valor único,920.72,883.3,845.88,2022-09
+Tarifa Áreas Comunes,Sin contribución,Valor único,767.27,736.09,704.9,2022-09
