@@ -3,5 +3,5 @@ pandas
 numpy
 plotly
 sqlalchemy
+python-dotenv
 prophet
-dotenv
