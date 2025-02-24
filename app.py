@@ -34,8 +34,10 @@ st.markdown("""
 
 # Conexión a la base de datos
 @st.cache_resource
+# def init_connection():
+#     return create_engine('mysql+mysqlconnector://root:@localhost/tarifas_energia')
 def init_connection():
-    return create_engine('mysql+mysqlconnector://root:@localhost/tarifas_energia')
+    return create_engine('mysql+mysqlconnector://if0_38389067:g0BIXyCv2w3P1oG@sql109.infinityfree.com:3306/if0_38389067_XXX')
 
 # Función para cargar datos
 @st.cache_data
