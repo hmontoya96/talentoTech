@@ -4,11 +4,14 @@ import numpy as np
 import plotly.express as px
 import plotly.graph_objects as go
 import locale
+import os
 from plotly.subplots import make_subplots
 from sqlalchemy import create_engine
+from sqlalchemy.exc import SQLAlchemyError
 import plotly.figure_factory as ff
 from datetime import datetime, timedelta
 from prophet import Prophet
+from dotenv import load_dotenv
 
 # Configuración inicial de la página
 st.set_page_config(
@@ -32,46 +35,97 @@ st.markdown("""
     </style>
 """, unsafe_allow_html=True)
 
+load_dotenv()
+
 # Conexión a la base de datos
 @st.cache_resource
-# def init_connection():
-#     return create_engine('mysql+mysqlconnector://root:@localhost/tarifas_energia')
 def init_connection():
-    return create_engine('mysql+mysqlconnector://if0_38389067:g0BIXyCv2w3P1oG@sql109.infinityfree.com:3306/if0_38389067_XXX')
+    try:
+        database_url = os.getenv("DATABASE_URL")
+        if not database_url:
+            raise ValueError
+        
+        # Intentar crear la conexión
+        engine = create_engine(database_url)
+        connection = engine.connect()
+        connection.close()
+        return engine
+
+    except:
+        st.error("⚠️ Error al conectarse a la base de datos.")
+
+    return None
 
 # Función para cargar datos
+# @st.cache_data
+# def load_data():
+#     engine = init_connection()
+    
+#     # Consultas SQL optimizadas
+#     query_tarifas = """
+#     SELECT t.*, c.nombre as categoria_nombre 
+#     FROM tarifa t 
+#     JOIN categoria c ON t.id_categoria = c.id_categoria
+#     ORDER BY t.periodo, c.nombre
+#     """
+    
+#     query_niveles = """
+#     SELECT tn.*, c.nombre as categoria_nombre 
+#     FROM tarifa_nivel tn 
+#     JOIN categoria c ON tn.id_categoria = c.id_categoria
+#     ORDER BY tn.periodo, c.nombre
+#     """
+    
+#     # Cargar datos en DataFrames
+#     df_tarifas = pd.read_sql(query_tarifas, engine)
+#     df_niveles = pd.read_sql(query_niveles, engine)
+    
+#     # Procesamiento de fechas
+#     df_tarifas['fecha'] = pd.to_datetime(df_tarifas['periodo'].astype(str), format='%Y%m')
+#     df_niveles['fecha'] = pd.to_datetime(df_niveles['periodo'].astype(str), format='%Y%m')
+
+#     # Reemplazar "ESPD*" por "ESPD" en categoria_nombre
+#     df_tarifas['categoria_nombre'] = df_tarifas['categoria_nombre'].str.replace('ESPD*', 'ESPD', regex=False)
+#     df_niveles['categoria_nombre'] = df_niveles['categoria_nombre'].str.replace('ESPD*', 'ESPD', regex=False)
+    
+#     return df_tarifas, df_niveles
+
 @st.cache_data
 def load_data():
     engine = init_connection()
     
-    # Consultas SQL optimizadas
-    query_tarifas = """
-    SELECT t.*, c.nombre as categoria_nombre 
-    FROM tarifa t 
-    JOIN categoria c ON t.id_categoria = c.id_categoria
-    ORDER BY t.periodo, c.nombre
-    """
+    if engine is None:
+        return None, None
     
-    query_niveles = """
-    SELECT tn.*, c.nombre as categoria_nombre 
-    FROM tarifa_nivel tn 
-    JOIN categoria c ON tn.id_categoria = c.id_categoria
-    ORDER BY tn.periodo, c.nombre
-    """
-    
-    # Cargar datos en DataFrames
-    df_tarifas = pd.read_sql(query_tarifas, engine)
-    df_niveles = pd.read_sql(query_niveles, engine)
-    
-    # Procesamiento de fechas
-    df_tarifas['fecha'] = pd.to_datetime(df_tarifas['periodo'].astype(str), format='%Y%m')
-    df_niveles['fecha'] = pd.to_datetime(df_niveles['periodo'].astype(str), format='%Y%m')
+    try:
+        query_tarifas = """
+        SELECT t.*, c.nombre as categoria_nombre 
+        FROM tarifa t 
+        JOIN categoria c ON t.id_categoria = c.id_categoria
+        ORDER BY t.periodo, c.nombre
+        """
 
-    # Reemplazar "ESPD*" por "ESPD" en categoria_nombre
-    df_tarifas['categoria_nombre'] = df_tarifas['categoria_nombre'].str.replace('ESPD*', 'ESPD', regex=False)
-    df_niveles['categoria_nombre'] = df_niveles['categoria_nombre'].str.replace('ESPD*', 'ESPD', regex=False)
-    
-    return df_tarifas, df_niveles
+        query_niveles = """
+        SELECT tn.*, c.nombre as categoria_nombre 
+        FROM tarifa_nivel tn 
+        JOIN categoria c ON tn.id_categoria = c.id_categoria
+        ORDER BY tn.periodo, c.nombre
+        """
+
+        df_tarifas = pd.read_sql(query_tarifas, engine)
+        df_niveles = pd.read_sql(query_niveles, engine)
+
+        df_tarifas['fecha'] = pd.to_datetime(df_tarifas['periodo'].astype(str), format='%Y%m')
+        df_niveles['fecha'] = pd.to_datetime(df_niveles['periodo'].astype(str), format='%Y%m')
+
+        df_tarifas['categoria_nombre'] = df_tarifas['categoria_nombre'].str.replace('ESPD*', 'ESPD', regex=False)
+        df_niveles['categoria_nombre'] = df_niveles['categoria_nombre'].str.replace('ESPD*', 'ESPD', regex=False)
+        
+        return df_tarifas, df_niveles
+
+    except Exception:
+        st.error("⚠️ Error al cargar los datos. Por favor, verifica la conexión a la base de datos.")
+        return None, None
 
 # Función para generar análisis automático
 # def generar_insights(df, tipo_propiedad):
@@ -183,6 +237,14 @@ st.markdown("---")
 
 # Cargar datos
 df_tarifas, df_niveles = load_data()
+
+# Verificar si los datos fueron cargados correctamente antes de continuar
+if df_tarifas is None or df_niveles is None:
+    st.error("⚠️ No se pudieron cargar los datos. Verifica la conexión a la base de datos.")
+    st.stop()
+
+# Continuar solo si los datos están disponibles
+categorias = sorted(df_tarifas['categoria_nombre'].unique())
 
 # Sidebar para filtros
 with st.sidebar:
