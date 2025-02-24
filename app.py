@@ -64,6 +64,10 @@ def load_data():
     # Procesamiento de fechas
     df_tarifas['fecha'] = pd.to_datetime(df_tarifas['periodo'].astype(str), format='%Y%m')
     df_niveles['fecha'] = pd.to_datetime(df_niveles['periodo'].astype(str), format='%Y%m')
+
+    # Reemplazar "ESPD*" por "ESPD" en categoria_nombre
+    df_tarifas['categoria_nombre'] = df_tarifas['categoria_nombre'].str.replace('ESPD*', 'ESPD', regex=False)
+    df_niveles['categoria_nombre'] = df_niveles['categoria_nombre'].str.replace('ESPD*', 'ESPD', regex=False)
     
     return df_tarifas, df_niveles
 
@@ -159,7 +163,7 @@ def predecir_tarifas(df, tipo_propiedad):
     df_pred = df[['fecha', tipo_propiedad]].rename(columns={'fecha': 'ds', tipo_propiedad: 'y'})
     modelo = Prophet()
     modelo.fit(df_pred)
-    futuro = modelo.make_future_dataframe(periods=6, freq='M')
+    futuro = modelo.make_future_dataframe(periods=6, freq='ME')
     prediccion = modelo.predict(futuro)
     return prediccion
 
@@ -169,7 +173,7 @@ def detectar_outliers(data):
     Q3 = data.quantile(0.75)
     IQR = Q3 - Q1
     outliers = data[(data < (Q1 - 1.5 * IQR)) | (data > (Q3 + 1.5 * IQR))]
-    return outliers
+    return outliers.index
 
 # Título principal con emoji
 st.title("⚡ Análisis de Tarifas Energéticas")
@@ -187,7 +191,8 @@ with st.sidebar:
     categoria_seleccionada = st.multiselect(
         "Seleccionar Categorías",
         options=categorias,
-        default=["ESPD*", "Estrato 1 - Rango 0 - CS", "Estrato 2 - Rango 0 - CS", "Estrato 3 - Rango 0 - CS",
+        # default=["Estrato 2 - Rango 0 - CS"]
+        default=["ESPD", "Estrato 1 - Rango 0 - CS", "Estrato 2 - Rango 0 - CS", "Estrato 3 - Rango 0 - CS",
                 "Estrato 4 - Todo el consumo", "Estrato 5 y 6 - Todo el consumo", "Industrial y Comercial",
                 "Oficial y Exentos de Contribucion"]
     )
@@ -217,266 +222,328 @@ df_filtrado = df_tarifas[
 ]
 
 # Crear pestañas
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📈 Evolución Temporal",
-    "📊 Análisis Comparativo",
-    "📉 Tendencias",
-    "📑 Estadísticas",
-    "🤖 Análisis Inteligente",
-    "🔮 Predicción de Tarifas"
-])
+# tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+#     "📈 Evolución Temporal",
+#     "📊 Análisis Comparativo",
+#     "📉 Tendencias",
+#     "📑 Estadísticas",
+#     "🤖 Análisis Inteligente",
+#     "🔮 Predicción de Tarifas"
+# ])
 
-# Pestaña 1: Evolución Temporal
-with tab1:
-    st.header("Evolución de Tarifas en el Tiempo")
-    
-    # Gráfico de líneas temporal
-    fig_evolucion = px.line(
-        df_filtrado,
-        x='fecha',
-        y=tipo_propiedad,
-        color='categoria_nombre',
-        title=f'Evolución de Tarifas por Categoría ({tipo_propiedad.replace("propiedad_", "").title()})',
-        labels={
-            tipo_propiedad: 'Tarifa',
-            'fecha': 'Fecha',
-            'categoria_nombre': 'Categoría'
-        }
-    )
-    fig_evolucion.update_layout(
-        xaxis_title="Fecha",
-        yaxis_title="Tarifa (COP)",
-        legend_title="Categoría",
-        hovermode='x unified'
-    )
-    st.plotly_chart(fig_evolucion, use_container_width=True)
-    
-    # Análisis de variación
-    col1, col2 = st.columns(2)
-    
+# Verificar si hay datos filtrados
+if df_filtrado.empty:
+    st.warning("Sin datos en el filtro, por favor selecciona una o varias categorías.")
+else:
+    # Crear pestañas
+    tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
+        "📈 Evolución Temporal",
+        "📊 Análisis Comparativo",
+        "📉 Tendencias",
+        "📑 Estadísticas",
+        "🤖 Análisis Inteligente",
+        "🔮 Predicción de Tarifas"
+    ])
+
+    # Pestaña 1: Evolución Temporal
+    with tab1:
+        st.header("Evolución de Tarifas en el Tiempo")
+        
+        # Gráfico de líneas temporal
+        fig_evolucion = px.line(
+            df_filtrado,
+            x='fecha',
+            y=tipo_propiedad,
+            color='categoria_nombre',
+            title=f'Evolución de Tarifas por Categoría ({tipo_propiedad.replace("propiedad_", "").title()})',
+            labels={
+                tipo_propiedad: 'Tarifa',
+                'fecha': 'Fecha',
+                'categoria_nombre': 'Categoría'
+            }
+        )
+        fig_evolucion.update_layout(
+            xaxis_title="Fecha",
+            yaxis_title="Tarifa (COP)",
+            legend_title="Categoría",
+            hovermode='x unified'
+        )
+        st.plotly_chart(fig_evolucion, use_container_width=True)
+        
+        # Análisis de variación
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Variación Porcentual Tarifa")
+            df_var = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].agg([
+                ('Inicial [$]', 'first'),
+                ('Final [$]', 'last'),
+                ('Variación [%]', lambda x: ((x.iloc[-1] - x.iloc[0]) / x.iloc[0] * 100))
+            ]).round(2)
+            df_var = df_var.rename_axis('Categoría')
+            st.dataframe(df_var, use_container_width=True)
+        
+        with col2:
+            st.subheader("Estadísticas de Variación")
+            df_stats = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].agg([
+                ('Promedio', 'mean'),
+                ('Mínimo', 'min'),
+                ('Máximo', 'max'),
+                ('Desv. Est.', 'std')
+            ]).round(2)
+            df_stats = df_stats.rename_axis('Categoría')
+            st.dataframe(df_var, use_container_width=True)
+
+    # Pestaña 2: Análisis Comparativo
+    with tab2:
+        st.header("Comparación entre Tipos de Propiedad")
+        
+        # Gráfico de cajas
+        fig_box = go.Figure()
+        propiedades = ['propiedad_epm', 'propiedad_compartido', 'propiedad_cliente']
+        
+        for prop in propiedades:
+            fig_box.add_trace(go.Box(
+                y=df_filtrado[prop],
+                name=prop.replace('propiedad_', '').title(),
+                boxpoints='outliers'
+            ))
+        
+        fig_box.update_layout(
+            title='Distribución de Tarifas por Tipo de Propiedad',
+            yaxis_title='Tarifa (COP)',
+            showlegend=True
+        )
+        st.plotly_chart(fig_box, use_container_width=True)
+        
+        # Matriz de correlación
+        st.subheader("Correlación entre Tipos de Propiedad")
+        corr_matrix = df_filtrado[propiedades].corr()
+        fig_corr = px.imshow(
+            corr_matrix,
+            labels=dict(color="Correlación"),
+            title="Matriz de Correlación",
+            color_continuous_scale="RdBu"
+        )
+        st.plotly_chart(fig_corr, use_container_width=True)
+
+    # Pestaña 3: Tendencias
+    with tab3:
+        st.header("Análisis de Tendencias")
+        
+        # Tendencia general
+        df_filtrado['año'] = df_filtrado['fecha'].dt.year
+        df_filtrado['mes'] = df_filtrado['fecha'].dt.month
+        
+        # Tendencia mensual promedio
+        fig_tendencia = px.line(
+            df_filtrado.groupby(['año', 'mes'])[tipo_propiedad].mean().reset_index(),
+            x='mes',
+            y=tipo_propiedad,
+            color='año',
+            title=f'Tendencia Mensual por Año ({tipo_propiedad.replace("propiedad_", "").title()})',
+            labels={
+                tipo_propiedad: 'Tarifa Promedio',
+                'mes': 'Mes',
+                'año': 'Año'
+            }
+        )
+        st.plotly_chart(fig_tendencia, use_container_width=True)
+        
+        # Descomposición de tendencia por categoría
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.subheader("Crecimiento Anual por Categoría")
+            df_crecimiento = df_filtrado.groupby(['año', 'categoria_nombre'])[tipo_propiedad].mean().unstack()
+            df_crecimiento.columns = [f"{col} [$]" for col in df_crecimiento.columns]
+            df_crecimiento = df_crecimiento.rename_axis('Categoría', axis=1)
+            df_crecimiento = df_crecimiento.rename_axis('Año')
+            st.dataframe(df_crecimiento.round(2), use_container_width=True)
+        
+        with col2:
+            st.subheader("Variación Mensual Promedio")
+            df_var_mensual = df_filtrado.groupby('mes')[tipo_propiedad].agg([
+                ('Promedio [$]', 'mean'),
+                ('Variación [$]', 'std')
+            ]).round(2)
+            df_var_mensual = df_var_mensual.rename_axis('Mes')
+            st.dataframe(df_var_mensual, use_container_width=True)
+
+        st.subheader("Mapa de Calor de Tarifas")
+        df_heatmap = df_filtrado.pivot_table(values=tipo_propiedad, index='mes', columns='año', aggfunc='mean')
+        fig_heatmap = px.imshow(df_heatmap, title="Tarifas Promedio por Mes y Año", labels=dict(color="Tarifa [$]"))
+        st.plotly_chart(fig_heatmap)
+
+    # Pestaña 4: Estadísticas
+    # with tab4:
+    #     st.header("Estadísticas Detalladas")
+        
+    #     # Resumen estadístico completo
+    #     st.subheader("Resumen Estadístico por Categoría")
+    #     df_stats_completo = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].describe()
+    #     st.dataframe(df_stats_completo)
+        
+    #     # Análisis de outliers
+    #     st.subheader("Detección de Valores Atípicos")
+        
+    #     outliers = df_filtrado.groupby('categoria_nombre').apply(
+    #         lambda x: detectar_outliers(x[tipo_propiedad]),
+    #         include_groups=False 
+    #     ).dropna() 
+        
+        # if not outliers.empty:
+        #     st.dataframe(pd.DataFrame({
+        #         'Categoría': outliers.index.get_level_values(0),
+        #         'Valor': outliers.values,
+        #         'Fecha': df_filtrado.loc[outliers.index.get_level_values(1), 'fecha'].values
+        #     }))
+        # else:
+        #     st.write("No se encontraron valores atípicos significativos.")
+
+    # Pestaña 4: Estadísticas
+    with tab4:
+        st.header("Estadísticas Detalladas")
+        
+        # Resumen estadístico completo
+        st.subheader("Resumen Estadístico por Categoría")
+        df_stats_completo = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].describe()
+        df_stats_completo = df_stats_completo.rename_axis('Categoría')
+        st.dataframe(df_stats_completo, use_container_width=True)
+        
+        # Análisis de outliers
+        st.subheader("Detección de Valores Atípicos")
+        
+        # Detectar índices de outliers agrupados por categoría
+        def get_outlier_indices(group):
+            return detectar_outliers(group[tipo_propiedad])
+        
+        # Aplicar la detección de outliers y obtener los índices
+        outliers_indices = df_filtrado.groupby('categoria_nombre', group_keys=False).apply(
+            get_outlier_indices, include_groups=False
+        )
+        
+        # Aplanar la lista de índices
+        outlier_indices_list = []
+        for indices in outliers_indices:
+            if not indices.empty:
+                outlier_indices_list.extend(indices.tolist())
+        
+        if outlier_indices_list:
+            outliers_df = df_filtrado.loc[outlier_indices_list, ['categoria_nombre', tipo_propiedad, 'fecha']].rename(columns={
+                'categoria_nombre': 'Categoría',
+                tipo_propiedad: 'Valor [$]',
+                'fecha': 'Fecha'
+            })
+            outliers_df = outliers_df.rename_axis('Índice (Valor interno)')
+            st.dataframe(outliers_df, use_container_width=True)
+        else:
+            st.write("No se encontraron valores atípicos significativos.")
+
+    # Pestaña 5: Análisis Inteligente
+    with tab5:
+        st.header("🤖 Análisis Inteligente de Tarifas")
+        insights = generar_insights(df_filtrado, tipo_propiedad)
+        for insight in insights:
+            st.write(f"🔍 {insight}")
+
+    # Pestaña 6: Predicción de Tarifas
+    with tab6:
+        st.header("🔮 Predicción de Tarifas")
+        prediccion = predecir_tarifas(df_filtrado, tipo_propiedad)
+        fig_pred = px.line(
+            prediccion,
+            x='ds',
+            y='yhat',
+            title="Predicción de Tarifas Energéticas",
+            labels={'ds': 'Fecha', 'yhat': 'Tarifa Predicha (COP)'}
+        )
+        st.plotly_chart(fig_pred, use_container_width=True)
+        
+        # Tomar la fecha actual automáticamente
+        fecha_actual = pd.to_datetime(datetime.now().date())
+        proximo_mes = fecha_actual + pd.offsets.MonthEnd(1) + pd.offsets.MonthBegin(1)
+        # pred_proximo_mes = prediccion[prediccion['ds'].dt.to_pydatetime() >= np.array(proximo_mes)].iloc[0]
+        pred_proximo_mes = prediccion[prediccion['ds'] >= proximo_mes].iloc[0]
+        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+        tarifa_predicha = pred_proximo_mes['yhat']
+        fecha_predicha = pred_proximo_mes['ds'].strftime('%B %Y').capitalize()
+        
+        # Mostrar etiqueta con la predicción
+        st.markdown(
+            f"<span style='background-color: #000000; padding: 5px 10px; border-radius: 5px; font-size: 14px;'>"
+            f"Predicción para {fecha_predicha}: ${tarifa_predicha:,.2f} COP"
+            f"</span>",
+            unsafe_allow_html=True
+        )
+
+    # Métricas clave en el footer
+    st.markdown("---")
+    col1, col2, col3, col4 = st.columns(4)
+
     with col1:
-        st.subheader("Variación Porcentual Tarifa")
-        df_var = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].agg([
-            ('Inicial [$]', 'first'),
-            ('Final [$]', 'last'),
-            ('Variación [%]', lambda x: ((x.iloc[-1] - x.iloc[0]) / x.iloc[0] * 100))
-        ]).round(2)
-        st.dataframe(df_var)
-    
+        st.metric(
+            "Tarifa Promedio",
+            f"${df_filtrado[tipo_propiedad].mean():.2f}",
+            f"{df_filtrado[tipo_propiedad].pct_change().mean()*100:.1f}%"
+        )
+
     with col2:
-        st.subheader("Estadísticas de Variación")
-        df_stats = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].agg([
-            ('Promedio', 'mean'),
-            ('Mínimo', 'min'),
-            ('Máximo', 'max'),
-            ('Desv. Est.', 'std')
-        ]).round(2)
-        st.dataframe(df_stats)
-
-# Pestaña 2: Análisis Comparativo
-with tab2:
-    st.header("Comparación entre Tipos de Propiedad")
-    
-    # Gráfico de cajas
-    fig_box = go.Figure()
-    propiedades = ['propiedad_epm', 'propiedad_compartido', 'propiedad_cliente']
-    
-    for prop in propiedades:
-        fig_box.add_trace(go.Box(
-            y=df_filtrado[prop],
-            name=prop.replace('propiedad_', '').title(),
-            boxpoints='outliers'
-        ))
-    
-    fig_box.update_layout(
-        title='Distribución de Tarifas por Tipo de Propiedad',
-        yaxis_title='Tarifa (COP)',
-        showlegend=True
-    )
-    st.plotly_chart(fig_box, use_container_width=True)
-    
-    # Matriz de correlación
-    st.subheader("Correlación entre Tipos de Propiedad")
-    corr_matrix = df_filtrado[propiedades].corr()
-    fig_corr = px.imshow(
-        corr_matrix,
-        labels=dict(color="Correlación"),
-        title="Matriz de Correlación",
-        color_continuous_scale="RdBu"
-    )
-    st.plotly_chart(fig_corr, use_container_width=True)
-
-# Pestaña 3: Tendencias
-with tab3:
-    st.header("Análisis de Tendencias")
-    
-    # Tendencia general
-    df_filtrado['año'] = df_filtrado['fecha'].dt.year
-    df_filtrado['mes'] = df_filtrado['fecha'].dt.month
-    
-    # Tendencia mensual promedio
-    fig_tendencia = px.line(
-        df_filtrado.groupby(['año', 'mes'])[tipo_propiedad].mean().reset_index(),
-        x='mes',
-        y=tipo_propiedad,
-        color='año',
-        title=f'Tendencia Mensual por Año ({tipo_propiedad.replace("propiedad_", "").title()})',
-        labels={
-            tipo_propiedad: 'Tarifa Promedio',
-            'mes': 'Mes',
-            'año': 'Año'
-        }
-    )
-    st.plotly_chart(fig_tendencia, use_container_width=True)
-    
-    # Descomposición de tendencia por categoría
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.subheader("Crecimiento Anual por Categoría")
-        df_crecimiento = df_filtrado.groupby(['año', 'categoria_nombre'])[tipo_propiedad].mean().unstack()
-        st.dataframe(df_crecimiento.round(2))
-    
-    with col2:
-        st.subheader("Variación Mensual Promedio")
-        df_var_mensual = df_filtrado.groupby('mes')[tipo_propiedad].agg([
-            ('Promedio', 'mean'),
-            ('Variación', 'std')
-        ]).round(2)
-        st.dataframe(df_var_mensual)
-
-    st.subheader("Mapa de Calor de Tarifas")
-    df_heatmap = df_filtrado.pivot_table(values=tipo_propiedad, index='mes', columns='año', aggfunc='mean')
-    fig_heatmap = px.imshow(df_heatmap, title="Tarifas Promedio por Mes y Año", labels=dict(color="Tarifa [$]"))
-    st.plotly_chart(fig_heatmap)
-
-# Pestaña 4: Estadísticas
-with tab4:
-    st.header("Estadísticas Detalladas")
-    
-    # Resumen estadístico completo
-    st.subheader("Resumen Estadístico por Categoría")
-    df_stats_completo = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].describe()
-    st.dataframe(df_stats_completo)
-    
-    # Análisis de outliers
-    st.subheader("Detección de Valores Atípicos")
-    
-    outliers = df_filtrado.groupby('categoria_nombre').apply(
-        lambda x: detectar_outliers(x[tipo_propiedad])
-    )
-    
-    if not outliers.empty:
-        st.dataframe(pd.DataFrame({
-            'Categoría': outliers.index.get_level_values(0),
-            'Valor': outliers.values,
-            'Fecha': df_filtrado.loc[outliers.index.get_level_values(1), 'fecha'].values
-        }))
-    else:
-        st.write("No se encontraron valores atípicos significativos.")
-
-# Pestaña 5: Análisis Inteligente
-with tab5:
-    st.header("🤖 Análisis Inteligente de Tarifas")
-    insights = generar_insights(df_filtrado, tipo_propiedad)
-    for insight in insights:
-        st.write(f"🔍 {insight}")
-
-# Pestaña 6: Predicción de Tarifas
-with tab6:
-    st.header("🔮 Predicción de Tarifas")
-    prediccion = predecir_tarifas(df_filtrado, tipo_propiedad)
-    fig_pred = px.line(
-        prediccion,
-        x='ds',
-        y='yhat',
-        title="Predicción de Tarifas Energéticas",
-        labels={'ds': 'Fecha', 'yhat': 'Tarifa Predicha (COP)'}
-    )
-    st.plotly_chart(fig_pred, use_container_width=True)
-    
-    # Tomar la fecha actual automáticamente
-    fecha_actual = pd.to_datetime(datetime.now().date())  # Obtiene la fecha actual del sistema
-    proximo_mes = fecha_actual + pd.offsets.MonthEnd(1) + pd.offsets.MonthBegin(1)
-    pred_proximo_mes = prediccion[prediccion['ds'].dt.to_pydatetime() >= proximo_mes].iloc[0]
-    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8') 
-    tarifa_predicha = pred_proximo_mes['yhat']
-    fecha_predicha = pred_proximo_mes['ds'].strftime('%B %Y').capitalize()
-    
-    # Mostrar etiqueta con la predicción
-    st.markdown(
-        f"<span style='background-color: #000000; padding: 5px 10px; border-radius: 5px; font-size: 14px;'>"
-        f"Predicción para {fecha_predicha}: ${tarifa_predicha:,.2f} COP"
-        f"</span>",
-        unsafe_allow_html=True
-    )
-
-# Métricas clave en el footer
-st.markdown("---")
-col1, col2, col3, col4 = st.columns(4)
-
-with col1:
-    st.metric(
-        "Tarifa Promedio",
-        f"${df_filtrado[tipo_propiedad].mean():.2f}",
-        f"{df_filtrado[tipo_propiedad].pct_change().mean()*100:.1f}%"
-    )
-
-with col2:
-    st.metric(
-        "Tarifa Máxima",
-        f"${df_filtrado[tipo_propiedad].max():.2f}",
-        f"Categoría: {df_filtrado.loc[df_filtrado[tipo_propiedad].idxmax(), 'categoria_nombre']}"
-    )
+        st.metric(
+            "Tarifa Máxima",
+            f"${df_filtrado[tipo_propiedad].max():.2f}",
+            f"Categoría: {df_filtrado.loc[df_filtrado[tipo_propiedad].idxmax(), 'categoria_nombre']}"
+        )
 
 
-with col3:
-    # Variación máxima mensual y su mes correspondiente
-    variacion_mensual = df_filtrado.groupby('fecha')[tipo_propiedad].mean().pct_change() * 100
-    max_variacion_idx = variacion_mensual.idxmax()
-    st.metric(
-        "Mayor Variación Mensual",
-        f"{variacion_mensual.max():.1f}%",
-        f"Mes: {max_variacion_idx.strftime('%b %Y')}"
-    )
+    with col3:
+        # Variación máxima mensual y su mes correspondiente
+        variacion_mensual = df_filtrado.groupby('fecha')[tipo_propiedad].mean().pct_change() * 100
+        max_variacion_idx = variacion_mensual.idxmax()
+        st.metric(
+            "Mayor Variación Mensual",
+            f"{variacion_mensual.max():.1f}%",
+            f"Mes: {max_variacion_idx.strftime('%b %Y')}"
+        )
 
-with col4:
-    # Categoría con mayor volatilidad (desviación estándar)
-    volatilidad = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].std()
-    categoria_volatil = volatilidad.idxmax()
-    st.metric(
-        "Categoría Más Volátil",
-        categoria_volatil,
-        f"Desv. Est.: {volatilidad.max():,.2f}"
-    )
+    with col4:
+        # Categoría con mayor volatilidad (desviación estándar)
+        volatilidad = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].std()
+        categoria_volatil = volatilidad.idxmax()
+        st.metric(
+            "Categoría Más Volátil",
+            categoria_volatil,
+            f"Desv. Est.: {volatilidad.max():,.2f}"
+        )
 
-# En el footer
-if st.button("Descargar Datos Filtrados como CSV"):
-    csv = df_filtrado.to_csv(index=False)
-    st.download_button("Descargar", csv, "datos_tarifas.csv", "text/csv")
+    # En el footer
+    if st.button("Descargar Datos Filtrados como CSV"):
+        csv = df_filtrado.to_csv(index=False)
+        st.download_button("Descargar", csv, "datos_tarifas.csv", "text/csv")
 
-# Información adicional
-st.markdown("---")
-st.markdown("""
-    #### Notas:
-    - Los datos mostrados corresponden a las tarifas energéticas históricas.
-    - Todas las tarifas están en pesos colombianos (COP).
-    - Los análisis incluyen variaciones porcentuales y tendencias temporales.
-    - Se ha utilizado un modelo de predicción para estimar tarifas futuras.
-          
-    #### Comodín:
-    - **ESPD:** Empresa de Servicios Públicos Domiciliarios.
-    - **CS:** Consumo Subsidiado (Alturas ≥ 1.000 msnm (0-130 kWh) | Alturas < 1.000 msnm (0-173 kWh)).
+    # Información adicional
+    st.markdown("---")
+    st.markdown("""
+        #### Notas:
+        - Los datos mostrados corresponden a las tarifas energéticas históricas.
+        - Todas las tarifas están en pesos colombianos (COP).
+        - Los análisis incluyen variaciones porcentuales y tendencias temporales.
+        - Se ha utilizado un modelo de predicción para estimar tarifas futuras.
             
-    #### Tarifa Horaria:
-    - **Punta:** 9 a.m.-12 m - 6-9 p.m.
-    - **Fuera de punta:** 0-9 a.m. - 12 m | 6 p.m. - 9 p.m.-12 p.m.
-            
-    #### Acerca de:
-    - **Desarrollado por:** Los Tarifarios.     
-""")
+        #### Glosario:
+        - **Epm:** Empresas Públicas de Medellín.
+        - **ESPD:** Empresa de Servicios Públicos Domiciliarios.
+        - **CS:** Consumo Subsidiado (Alturas ≥ 1.000 msnm (0-130 kWh) | Alturas < 1.000 msnm (0-173 kWh)).
+                
+        #### Tarifa Horaria:
+        - **Punta:** 9 a.m.-12 m - 6-9 p.m.
+        - **Fuera de punta:** 0-9 a.m. - 12 m | 6 p.m. - 9 p.m.-12 p.m.
+                
+        #### Acerca de:
+        - **Desarrollado por:** Los Tarifarios.     
+    """)
 
-# Botón para limpiar caché
-if st.button('Limpiar Cache'):
-    st.cache_data.clear()
-    st.success('Cache limpiado exitosamente')
+    # Botón para limpiar caché
+    if st.button('Limpiar Cache'):
+        st.cache_data.clear()
+        st.success('Cache limpiado exitosamente')
