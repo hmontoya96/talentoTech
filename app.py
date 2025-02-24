@@ -255,11 +255,11 @@ with tab1:
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Variación Porcentual")
+        st.subheader("Variación Porcentual Tarifa")
         df_var = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].agg([
-            ('Inicial', 'first'),
-            ('Final', 'last'),
-            ('Variación %', lambda x: ((x.iloc[-1] - x.iloc[0]) / x.iloc[0] * 100))
+            ('Inicial [$]', 'first'),
+            ('Final [$]', 'last'),
+            ('Variación [%]', lambda x: ((x.iloc[-1] - x.iloc[0]) / x.iloc[0] * 100))
         ]).round(2)
         st.dataframe(df_var)
     
@@ -347,7 +347,7 @@ with tab3:
 
     st.subheader("Mapa de Calor de Tarifas")
     df_heatmap = df_filtrado.pivot_table(values=tipo_propiedad, index='mes', columns='año', aggfunc='mean')
-    fig_heatmap = px.imshow(df_heatmap, title="Tarifas Promedio por Mes y Año")
+    fig_heatmap = px.imshow(df_heatmap, title="Tarifas Promedio por Mes y Año", labels=dict(color="Tarifa [$]"))
     st.plotly_chart(fig_heatmap)
 
 # Pestaña 4: Estadísticas
@@ -463,8 +463,15 @@ st.markdown("""
     - Todas las tarifas están en pesos colombianos (COP).
     - Los análisis incluyen variaciones porcentuales y tendencias temporales.
     - Se ha utilizado un modelo de predicción para estimar tarifas futuras.
-    - \* Empresa de Servicios Públicos Domiciliarios.
-
+          
+    #### Comodín:
+    - **ESPD:** Empresa de Servicios Públicos Domiciliarios.
+    - **CS:** Consumo Subsidiado (Alturas ≥ 1.000 msnm (0-130 kWh) | Alturas < 1.000 msnm (0-173 kWh)).
+            
+    #### Tarifa Horaria:
+    - **Punta:** 9 a.m.-12 m - 6-9 p.m.
+    - **Fuera de punta:** 0-9 a.m. - 12 m | 6 p.m. - 9 p.m.-12 p.m.
+            
     #### Acerca de:
     - **Desarrollado por:** Los Tarifarios.     
 """)
