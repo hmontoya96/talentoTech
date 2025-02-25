@@ -35,8 +35,12 @@ st.markdown("""
         padding: 10px;
         border-radius: 5px;
     }
+    div[data-testid="stMetricValue"] {
+        font-size: 20px !important;
+    }
     </style>
 """, unsafe_allow_html=True)
+
 
 load_dotenv()
 
