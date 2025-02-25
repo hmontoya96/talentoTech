@@ -314,16 +314,6 @@ df_filtrado = df_tarifas[
     (df_tarifas['fecha'] <= pd.to_datetime(fecha_rango[1]))
 ]
 
-# Crear pestañas
-# tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-#     "📈 Evolución Temporal",
-#     "📊 Análisis Comparativo",
-#     "📉 Tendencias",
-#     "📑 Estadísticas",
-#     "🤖 Análisis Inteligente",
-#     "🔮 Predicción de Tarifas"
-# ])
-
 # Verificar si hay datos filtrados
 if df_filtrado.empty:
     st.warning("Sin datos en el filtro, por favor selecciona una o varias categorías.")
@@ -539,6 +529,7 @@ else:
                 tipo_propiedad: 'Valor [$]',
                 'fecha': 'Fecha'
             })
+            outliers_df['Fecha'] = outliers_df['Fecha'].dt.strftime('%Y-%m')
             outliers_df = outliers_df.rename_axis('Índice (Valor interno)')
             st.dataframe(outliers_df, use_container_width=True)
         else:
@@ -651,7 +642,7 @@ else:
         #### Glosario:
         - **Epm:** Empresas Públicas de Medellín.
         - **ESPD:** Empresa de Servicios Públicos Domiciliarios.
-        - **CS:** Consumo Subsidiado (Alturas ≥ 1.000 msnm (0-130 kWh) | Alturas < 1.000 msnm (0-173 kWh)).
+        - **CS:** Consumo Subsidiado (0-130 kWh si ≥ 1.000 msnm | 0-173 kWh si < 1.000 msnm), consumo excedente paga tarifa plena.
                 
         #### Tarifa Horaria:
         - **Punta:** 9 a.m.-12 m - 6-9 p.m.
