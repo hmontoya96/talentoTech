@@ -12,6 +12,9 @@ import plotly.figure_factory as ff
 from datetime import datetime, timedelta
 from prophet import Prophet
 from dotenv import load_dotenv
+import google.generativeai as genai
+from google.api_core import exceptions
+import json
 
 # Configuración inicial de la página
 st.set_page_config(
@@ -36,6 +39,31 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 load_dotenv()
+
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
+genai.configure(api_key=GEMINI_API_KEY)
+
+# Función para llamar a Gemini
+@st.cache_data
+def call_gemini_model(data, prompt, model_name="gemini-pro"):
+    try:
+        # Convertir datos a string
+        if isinstance(data, pd.DataFrame):
+            data_str = data.to_csv(index=False)
+        elif isinstance(data, dict):
+            data_str = json.dumps(data, ensure_ascii=False)
+        else:
+            data_str = str(data)
+        
+        full_prompt = f"{prompt}\n\nData:\n{data_str}"
+        model = genai.GenerativeModel(model_name)
+        response = model.generate_content(full_prompt)
+        return response.text
+    
+    except exceptions.GoogleAPIError as e:
+        return f"Error calling Gemini API: {str(e)}"
+    except Exception as e:
+        return f"Unexpected error: {str(e)}"
 
 # Conexión a la base de datos
 @st.cache_resource
@@ -357,6 +385,18 @@ else:
             ]).round(2)
             df_stats = df_stats.rename_axis('Categoría')
             st.dataframe(df_var, use_container_width=True)
+
+        # Gemini Analysis con Botón
+        st.subheader("Análisis con Inteligencia Artificial")
+        if st.button("Generar Análisis con IA"):
+            with st.spinner("Analizando datos con IA..."):
+                data_to_send = df_filtrado[['fecha', tipo_propiedad, 'categoria_nombre']]
+                prompt = "Analiza la evolución temporal de las tarifas de energía en los datos proporcionados. Identifica las tendencias clave, los picos y las caídas a lo largo del tiempo. Responde siempre en español."
+                analysis = call_gemini_model(data_to_send, prompt)
+                with st.expander("Ver análisis"):
+                    st.markdown(analysis)
+        else:
+            st.write("Haz clic en el botón para generar el análisis.")
 
     # Pestaña 2: Análisis Comparativo
     with tab2:
