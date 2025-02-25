@@ -43,9 +43,9 @@ load_dotenv()
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Función para llamar a Gemini
+# Función para llamar a IA
 @st.cache_data
-def call_gemini_model(data, prompt, model_name="gemini-pro"):
+def call_ia_model(data, prompt, model_name="gemini-1.5-flash"):
     try:
         # Convertir datos a string
         if isinstance(data, pd.DataFrame):
@@ -283,10 +283,11 @@ with st.sidebar:
     categoria_seleccionada = st.multiselect(
         "Seleccionar Categorías",
         options=categorias,
-        # default=["Estrato 2 - Rango 0 - CS"]
-        default=["ESPD", "Estrato 1 - Rango 0 - CS", "Estrato 2 - Rango 0 - CS", "Estrato 3 - Rango 0 - CS",
-                "Estrato 4 - Todo el consumo", "Estrato 5 y 6 - Todo el consumo", "Industrial y Comercial",
-                "Oficial y Exentos de Contribucion"]
+        default=["Estrato 1 - Rango 0 - CS", "Estrato 2 - Rango 0 - CS", "Estrato 3 - Rango 0 - CS",
+                "Estrato 4 - Todo el consumo", "Estrato 5 y 6 - Todo el consumo"]
+        # default=["ESPD", "Estrato 1 - Rango 0 - CS", "Estrato 2 - Rango 0 - CS", "Estrato 3 - Rango 0 - CS",
+        #         "Estrato 4 - Todo el consumo", "Estrato 5 y 6 - Todo el consumo", "Industrial y Comercial",
+        #         "Oficial y Exentos de Contribucion"]
     )
     
     # Filtro de fechas
@@ -386,13 +387,13 @@ else:
             df_stats = df_stats.rename_axis('Categoría')
             st.dataframe(df_var, use_container_width=True)
 
-        # Gemini Analysis con Botón
+        # Análisis Temporal
         st.subheader("Análisis con Inteligencia Artificial")
         if st.button("Generar Análisis con IA"):
             with st.spinner("Analizando datos con IA..."):
                 data_to_send = df_filtrado[['fecha', tipo_propiedad, 'categoria_nombre']]
                 prompt = "Analiza la evolución temporal de las tarifas de energía en los datos proporcionados. Identifica las tendencias clave, los picos y las caídas a lo largo del tiempo. Responde siempre en español."
-                analysis = call_gemini_model(data_to_send, prompt)
+                analysis = call_ia_model(data_to_send, prompt)
                 with st.expander("Ver análisis"):
                     st.markdown(analysis)
         else:
@@ -430,6 +431,17 @@ else:
             color_continuous_scale="RdBu"
         )
         st.plotly_chart(fig_corr, use_container_width=True)
+
+        # Análisis Comparativo
+        if st.button("Generar Análisis Comparativo con IA"):
+            with st.spinner("Analizando datos con IA..."):
+                data_to_send = df_filtrado[propiedades + ['categoria_nombre']]
+                prompt = "Compara la distribución de las tarifas entre propiedad_epm, propiedad_compartido y propiedad_cliente en los datos proporcionados. Destaca diferencias, similitudes y cualquier patrón notable. Responde siempre en español."
+                analysis = call_ia_model(data_to_send, prompt)
+                with st.expander("Ver análisis comparativo"):
+                    st.markdown(analysis)
+        else:
+            st.write("Haz clic en el botón para generar el análisis comparativo.")
 
     # Pestaña 3: Tendencias
     with tab3:
@@ -479,31 +491,19 @@ else:
         fig_heatmap = px.imshow(df_heatmap, title="Tarifas Promedio por Mes y Año", labels=dict(color="Tarifa [$]"))
         st.plotly_chart(fig_heatmap)
 
-    # Pestaña 4: Estadísticas
-    # with tab4:
-    #     st.header("Estadísticas Detalladas")
-        
-    #     # Resumen estadístico completo
-    #     st.subheader("Resumen Estadístico por Categoría")
-    #     df_stats_completo = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].describe()
-    #     st.dataframe(df_stats_completo)
-        
-    #     # Análisis de outliers
-    #     st.subheader("Detección de Valores Atípicos")
-        
-    #     outliers = df_filtrado.groupby('categoria_nombre').apply(
-    #         lambda x: detectar_outliers(x[tipo_propiedad]),
-    #         include_groups=False 
-    #     ).dropna() 
-        
-        # if not outliers.empty:
-        #     st.dataframe(pd.DataFrame({
-        #         'Categoría': outliers.index.get_level_values(0),
-        #         'Valor': outliers.values,
-        #         'Fecha': df_filtrado.loc[outliers.index.get_level_values(1), 'fecha'].values
-        #     }))
-        # else:
-        #     st.write("No se encontraron valores atípicos significativos.")
+        # Análisis de Tendencias
+        if st.button("Generar Análisis de Tendencias con IA"):
+            with st.spinner("Analizando datos con IA..."):
+                try:
+                    data_to_send = df_filtrado[['fecha', 'año', 'mes', tipo_propiedad, 'categoria_nombre']]
+                    prompt = "Analiza las tendencias en las tarifas de energía a lo largo del tiempo basándote en los datos proporcionados. Identifica patrones estacionales, cambios anuales y cualquier cambio significativo. Responde siempre en español."
+                    analysis = call_ia_model(data_to_send, prompt)
+                    with st.expander("Ver análisis de tendencias"):
+                        st.markdown(analysis)
+                except Exception:
+                    st.error("Tenemos un error al procesar su solicitud. Limita la cantidad de datos.")
+        else:
+            st.write("Haz clic en el botón para generar el análisis de tendencias.")
 
     # Pestaña 4: Estadísticas
     with tab4:
@@ -543,6 +543,20 @@ else:
             st.dataframe(outliers_df, use_container_width=True)
         else:
             st.write("No se encontraron valores atípicos significativos.")
+
+        # Análisis Estadístico
+        if st.button("Generar Análisis Estadístico con IA"):
+            with st.spinner("Analizando datos con IA..."):
+                try:
+                    data_to_send = df_filtrado[[tipo_propiedad, 'categoria_nombre']]
+                    prompt = "Proporciona un análisis estadístico de las tarifas de energía en los datos proporcionados. Comenta sobre las distribuciones, la variabilidad y cualquier valor atípico. Además, intenta identificar y explicar posibles razones o factores que podrían estar causando estos valores atípicos, considerando el contexto de las categorías y los datos disponibles. Responde siempre en español."
+                    analysis = call_ia_model(data_to_send, prompt)
+                    with st.expander("Ver análisis estadístico"):
+                        st.markdown(analysis)
+                except Exception:
+                    st.error("Tenemos un error al procesar su solicitud. Limita la cantidad de datos.")
+        else:
+            st.write("Haz clic en el botón para generar el análisis estadístico.")
 
     # Pestaña 5: Análisis Inteligente
     with tab5:
