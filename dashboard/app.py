@@ -75,7 +75,7 @@ def init_connection():
     try:
         database_url = os.getenv("DATABASE_URL")
         if not database_url:
-            raise ValueError
+            raise ValueError("DATABASE_URL no está configurado en el archivo .env")
         
         # Intentar crear la conexión
         engine = create_engine(database_url)
@@ -83,8 +83,12 @@ def init_connection():
         connection.close()
         return engine
 
-    except:
-        st.error("⚠️ Error al conectarse a la base de datos.")
+    except ValueError as ve:
+        st.error(f"⚠️ Error de configuración: {ve}")
+    except SQLAlchemyError as sae:
+        st.error(f"⚠️ Error de SQLAlchemy: {sae}")
+    except Exception as e:
+        st.error(f"⚠️ Error inesperado: {e}")
 
     return None
 
@@ -333,225 +337,225 @@ else:
     ])
 
     # Pestaña 1: Evolución Temporal
-    with tab1:
-        st.header("Evolución de Tarifas en el Tiempo")
-        
-        # Gráfico de líneas temporal
-        fig_evolucion = px.line(
-            df_filtrado,
-            x='fecha',
-            y=tipo_propiedad,
-            color='categoria_nombre',
-            title=f'Evolución de Tarifas por Categoría ({tipo_propiedad.replace("propiedad_", "").title()})',
-            labels={
-                tipo_propiedad: 'Tarifa',
-                'fecha': 'Fecha',
-                'categoria_nombre': 'Categoría'
-            }
-        )
-        fig_evolucion.update_layout(
-            xaxis_title="Fecha",
-            yaxis_title="Tarifa (COP)",
-            legend_title="Categoría",
-            hovermode='x unified'
-        )
-        st.plotly_chart(fig_evolucion, use_container_width=True)
-        
-        # Análisis de variación
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Variación Porcentual Tarifa")
-            df_var = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].agg([
-                ('Inicial [$]', 'first'),
-                ('Final [$]', 'last'),
-                ('Variación [%]', lambda x: ((x.iloc[-1] - x.iloc[0]) / x.iloc[0] * 100))
-            ]).round(2)
-            df_var = df_var.rename_axis('Categoría')
-            st.dataframe(df_var, use_container_width=True)
-        
-        with col2:
-            st.subheader("Estadísticas de Variación")
-            df_stats = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].agg([
-                ('Promedio', 'mean'),
-                ('Mínimo', 'min'),
-                ('Máximo', 'max'),
-                ('Desv. Est.', 'std')
-            ]).round(2)
-            df_stats = df_stats.rename_axis('Categoría')
-            st.dataframe(df_var, use_container_width=True)
+with tab1:
+    st.header("Evolución de Tarifas en el Tiempo")
+    
+    # Gráfico de líneas temporal
+    fig_evolucion = px.line(
+        df_filtrado,
+        x='fecha',
+        y=tipo_propiedad,
+        color='categoria_nombre',
+        title=f'Evolución de Tarifas por Categoría ({tipo_propiedad.replace("propiedad_", "").title()})',
+        labels={
+            tipo_propiedad: 'Tarifa',
+            'fecha': 'Fecha',
+            'categoria_nombre': 'Categoría'
+        }
+    )
+    fig_evolucion.update_layout(
+        xaxis_title="Fecha",
+        yaxis_title="Tarifa (COP)",
+        legend_title="Categoría",
+        hovermode='x unified'
+    )
+    st.plotly_chart(fig_evolucion, use_container_width=True)
+    
+    # Análisis de variación
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Variación Porcentual Tarifa")
+        df_var = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].agg([
+            ('Inicial [$]', 'first'),
+            ('Final [$]', 'last'),
+            ('Variación [%]', lambda x: ((x.iloc[-1] - x.iloc[0]) / x.iloc[0] * 100))
+        ]).round(2)
+        df_var = df_var.rename_axis('Categoría')
+        st.dataframe(df_var, use_container_width=True)
+    
+    with col2:
+        st.subheader("Estadísticas de Variación")
+        df_stats = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].agg([
+            ('Promedio', 'mean'),
+            ('Mínimo', 'min'),
+            ('Máximo', 'max'),
+            ('Desv. Est.', 'std')
+        ]).round(2)
+        df_stats = df_stats.rename_axis('Categoría')
+        st.dataframe(df_var, use_container_width=True)
 
-        # Análisis Temporal
-        st.subheader("Análisis con Inteligencia Artificial")
-        if st.button("Generar Análisis con IA"):
-            with st.spinner("Analizando datos con IA..."):
-                data_to_send = df_filtrado[['fecha', tipo_propiedad, 'categoria_nombre']]
-                prompt = "Analiza la evolución temporal de las tarifas de energía en los datos proporcionados. Identifica las tendencias clave, los picos y las caídas a lo largo del tiempo. Responde siempre en español."
+    # Análisis Temporal
+    st.subheader("Análisis con Inteligencia Artificial")
+    if st.button("Generar Análisis con IA"):
+        with st.spinner("Analizando datos con IA..."):
+            data_to_send = df_filtrado[['fecha', tipo_propiedad, 'categoria_nombre']]
+            prompt = "Analiza la evolución temporal de las tarifas de energía en los datos proporcionados. Identifica las tendencias clave, los picos y las caídas a lo largo del tiempo. Responde siempre en español."
+            analysis = call_ia_model(data_to_send, prompt)
+            with st.expander("Ver análisis"):
+                st.markdown(analysis)
+    else:
+        st.write("Haz clic en el botón para generar el análisis.")
+
+# Pestaña 2: Análisis Comparativo
+with tab2:
+    st.header("Comparación entre Tipos de Propiedad")
+    
+    # Gráfico de cajas
+    fig_box = go.Figure()
+    propiedades = ['propiedad_epm', 'propiedad_compartido', 'propiedad_cliente']
+    
+    for prop in propiedades:
+        fig_box.add_trace(go.Box(
+            y=df_filtrado[prop],
+            name=prop.replace('propiedad_', '').title(),
+            boxpoints='outliers'
+        ))
+    
+    fig_box.update_layout(
+        title='Distribución de Tarifas por Tipo de Propiedad',
+        yaxis_title='Tarifa (COP)',
+        showlegend=True
+    )
+    st.plotly_chart(fig_box, use_container_width=True)
+    
+    # Matriz de correlación
+    st.subheader("Correlación entre Tipos de Propiedad")
+    corr_matrix = df_filtrado[propiedades].corr()
+    fig_corr = px.imshow(
+        corr_matrix,
+        labels=dict(color="Correlación"),
+        title="Matriz de Correlación",
+        color_continuous_scale="RdBu"
+    )
+    st.plotly_chart(fig_corr, use_container_width=True)
+
+    # Análisis Comparativo
+    if st.button("Generar Análisis Comparativo con IA"):
+        with st.spinner("Analizando datos con IA..."):
+            data_to_send = df_filtrado[propiedades + ['categoria_nombre']]
+            prompt = "Compara la distribución de las tarifas entre propiedad_epm, propiedad_compartido y propiedad_cliente en los datos proporcionados. Destaca diferencias, similitudes y cualquier patrón notable. Responde siempre en español."
+            analysis = call_ia_model(data_to_send, prompt)
+            with st.expander("Ver análisis comparativo"):
+                st.markdown(analysis)
+    else:
+        st.write("Haz clic en el botón para generar el análisis comparativo.")
+
+# Pestaña 3: Tendencias
+with tab3:
+    st.header("Análisis de Tendencias")
+    
+    # Tendencia general
+    df_filtrado['año'] = df_filtrado['fecha'].dt.year
+    df_filtrado['mes'] = df_filtrado['fecha'].dt.month
+    
+    # Tendencia mensual promedio
+    fig_tendencia = px.line(
+        df_filtrado.groupby(['año', 'mes'])[tipo_propiedad].mean().reset_index(),
+        x='mes',
+        y=tipo_propiedad,
+        color='año',
+        title=f'Tendencia Mensual por Año ({tipo_propiedad.replace("propiedad_", "").title()})',
+        labels={
+            tipo_propiedad: 'Tarifa Promedio',
+            'mes': 'Mes',
+            'año': 'Año'
+        }
+    )
+    st.plotly_chart(fig_tendencia, use_container_width=True)
+    
+    # Descomposición de tendencia por categoría
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Crecimiento Anual por Categoría")
+        df_crecimiento = df_filtrado.groupby(['año', 'categoria_nombre'])[tipo_propiedad].mean().unstack()
+        df_crecimiento.columns = [f"{col} [$]" for col in df_crecimiento.columns]
+        df_crecimiento = df_crecimiento.rename_axis('Categoría', axis=1)
+        df_crecimiento = df_crecimiento.rename_axis('Año')
+        st.dataframe(df_crecimiento.round(2), use_container_width=True)
+    
+    with col2:
+        st.subheader("Variación Mensual Promedio")
+        df_var_mensual = df_filtrado.groupby('mes')[tipo_propiedad].agg([
+            ('Promedio [$]', 'mean'),
+            ('Variación [$]', 'std')
+        ]).round(2)
+        df_var_mensual = df_var_mensual.rename_axis('Mes')
+        st.dataframe(df_var_mensual, use_container_width=True)
+
+    st.subheader("Mapa de Calor de Tarifas")
+    df_heatmap = df_filtrado.pivot_table(values=tipo_propiedad, index='mes', columns='año', aggfunc='mean')
+    fig_heatmap = px.imshow(df_heatmap, title="Tarifas Promedio por Mes y Año", labels=dict(color="Tarifa [$]"))
+    st.plotly_chart(fig_heatmap)
+
+    # Análisis de Tendencias
+    if st.button("Generar Análisis de Tendencias con IA"):
+        with st.spinner("Analizando datos con IA..."):
+            try:
+                data_to_send = df_filtrado[['fecha', 'año', 'mes', tipo_propiedad, 'categoria_nombre']]
+                prompt = "Analiza las tendencias en las tarifas de energía a lo largo del tiempo basándote en los datos proporcionados. Identifica patrones estacionales, cambios anuales y cualquier cambio significativo. Responde siempre en español."
                 analysis = call_ia_model(data_to_send, prompt)
-                with st.expander("Ver análisis"):
+                with st.expander("Ver análisis de tendencias"):
                     st.markdown(analysis)
-        else:
-            st.write("Haz clic en el botón para generar el análisis.")
+            except Exception:
+                st.error("Tenemos un error al procesar su solicitud. Limita la cantidad de datos.")
+    else:
+        st.write("Haz clic en el botón para generar el análisis de tendencias.")
 
-    # Pestaña 2: Análisis Comparativo
-    with tab2:
-        st.header("Comparación entre Tipos de Propiedad")
-        
-        # Gráfico de cajas
-        fig_box = go.Figure()
-        propiedades = ['propiedad_epm', 'propiedad_compartido', 'propiedad_cliente']
-        
-        for prop in propiedades:
-            fig_box.add_trace(go.Box(
-                y=df_filtrado[prop],
-                name=prop.replace('propiedad_', '').title(),
-                boxpoints='outliers'
-            ))
-        
-        fig_box.update_layout(
-            title='Distribución de Tarifas por Tipo de Propiedad',
-            yaxis_title='Tarifa (COP)',
-            showlegend=True
-        )
-        st.plotly_chart(fig_box, use_container_width=True)
-        
-        # Matriz de correlación
-        st.subheader("Correlación entre Tipos de Propiedad")
-        corr_matrix = df_filtrado[propiedades].corr()
-        fig_corr = px.imshow(
-            corr_matrix,
-            labels=dict(color="Correlación"),
-            title="Matriz de Correlación",
-            color_continuous_scale="RdBu"
-        )
-        st.plotly_chart(fig_corr, use_container_width=True)
+# Pestaña 4: Estadísticas
+with tab4:
+    st.header("Estadísticas Detalladas")
+    
+    # Resumen estadístico completo
+    st.subheader("Resumen Estadístico por Categoría")
+    df_stats_completo = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].describe()
+    df_stats_completo = df_stats_completo.rename_axis('Categoría')
+    st.dataframe(df_stats_completo, use_container_width=True)
+    
+    # Análisis de outliers
+    st.subheader("Detección de Valores Atípicos")
+    
+    # Detectar índices de outliers agrupados por categoría
+    def get_outlier_indices(group):
+        return detectar_outliers(group[tipo_propiedad])
+    
+    # Aplicar la detección de outliers y obtener los índices
+    outliers_indices = df_filtrado.groupby('categoria_nombre', group_keys=False).apply(
+        get_outlier_indices, include_groups=False
+    )
+    
+    # Aplanar la lista de índices
+    outlier_indices_list = []
+    for indices in outliers_indices:
+        if not indices.empty:
+            outlier_indices_list.extend(indices.tolist())
+    
+    if outlier_indices_list:
+        outliers_df = df_filtrado.loc[outlier_indices_list, ['categoria_nombre', tipo_propiedad, 'fecha']].rename(columns={
+            'categoria_nombre': 'Categoría',
+            tipo_propiedad: 'Valor [$]',
+            'fecha': 'Fecha'
+        })
+        outliers_df['Fecha'] = outliers_df['Fecha'].dt.strftime('%Y-%m')
+        outliers_df = outliers_df.rename_axis('Índice (Valor interno)')
+        st.dataframe(outliers_df, use_container_width=True)
+    else:
+        st.write("No se encontraron valores atípicos significativos.")
 
-        # Análisis Comparativo
-        if st.button("Generar Análisis Comparativo con IA"):
-            with st.spinner("Analizando datos con IA..."):
-                data_to_send = df_filtrado[propiedades + ['categoria_nombre']]
-                prompt = "Compara la distribución de las tarifas entre propiedad_epm, propiedad_compartido y propiedad_cliente en los datos proporcionados. Destaca diferencias, similitudes y cualquier patrón notable. Responde siempre en español."
+    # Análisis Estadístico
+    if st.button("Generar Análisis Estadístico con IA"):
+        with st.spinner("Analizando datos con IA..."):
+            try:
+                data_to_send = df_filtrado[[tipo_propiedad, 'categoria_nombre']]
+                prompt = "Proporciona un análisis estadístico de las tarifas de energía en los datos proporcionados. Comenta sobre las distribuciones, la variabilidad y cualquier valor atípico. Además, intenta identificar y explicar posibles razones o factores que podrían estar causando estos valores atípicos, considerando el contexto de las categorías y los datos disponibles. Responde siempre en español."
                 analysis = call_ia_model(data_to_send, prompt)
-                with st.expander("Ver análisis comparativo"):
+                with st.expander("Ver análisis estadístico"):
                     st.markdown(analysis)
-        else:
-            st.write("Haz clic en el botón para generar el análisis comparativo.")
-
-    # Pestaña 3: Tendencias
-    with tab3:
-        st.header("Análisis de Tendencias")
-        
-        # Tendencia general
-        df_filtrado['año'] = df_filtrado['fecha'].dt.year
-        df_filtrado['mes'] = df_filtrado['fecha'].dt.month
-        
-        # Tendencia mensual promedio
-        fig_tendencia = px.line(
-            df_filtrado.groupby(['año', 'mes'])[tipo_propiedad].mean().reset_index(),
-            x='mes',
-            y=tipo_propiedad,
-            color='año',
-            title=f'Tendencia Mensual por Año ({tipo_propiedad.replace("propiedad_", "").title()})',
-            labels={
-                tipo_propiedad: 'Tarifa Promedio',
-                'mes': 'Mes',
-                'año': 'Año'
-            }
-        )
-        st.plotly_chart(fig_tendencia, use_container_width=True)
-        
-        # Descomposición de tendencia por categoría
-        col1, col2 = st.columns(2)
-        
-        with col1:
-            st.subheader("Crecimiento Anual por Categoría")
-            df_crecimiento = df_filtrado.groupby(['año', 'categoria_nombre'])[tipo_propiedad].mean().unstack()
-            df_crecimiento.columns = [f"{col} [$]" for col in df_crecimiento.columns]
-            df_crecimiento = df_crecimiento.rename_axis('Categoría', axis=1)
-            df_crecimiento = df_crecimiento.rename_axis('Año')
-            st.dataframe(df_crecimiento.round(2), use_container_width=True)
-        
-        with col2:
-            st.subheader("Variación Mensual Promedio")
-            df_var_mensual = df_filtrado.groupby('mes')[tipo_propiedad].agg([
-                ('Promedio [$]', 'mean'),
-                ('Variación [$]', 'std')
-            ]).round(2)
-            df_var_mensual = df_var_mensual.rename_axis('Mes')
-            st.dataframe(df_var_mensual, use_container_width=True)
-
-        st.subheader("Mapa de Calor de Tarifas")
-        df_heatmap = df_filtrado.pivot_table(values=tipo_propiedad, index='mes', columns='año', aggfunc='mean')
-        fig_heatmap = px.imshow(df_heatmap, title="Tarifas Promedio por Mes y Año", labels=dict(color="Tarifa [$]"))
-        st.plotly_chart(fig_heatmap)
-
-        # Análisis de Tendencias
-        if st.button("Generar Análisis de Tendencias con IA"):
-            with st.spinner("Analizando datos con IA..."):
-                try:
-                    data_to_send = df_filtrado[['fecha', 'año', 'mes', tipo_propiedad, 'categoria_nombre']]
-                    prompt = "Analiza las tendencias en las tarifas de energía a lo largo del tiempo basándote en los datos proporcionados. Identifica patrones estacionales, cambios anuales y cualquier cambio significativo. Responde siempre en español."
-                    analysis = call_ia_model(data_to_send, prompt)
-                    with st.expander("Ver análisis de tendencias"):
-                        st.markdown(analysis)
-                except Exception:
-                    st.error("Tenemos un error al procesar su solicitud. Limita la cantidad de datos.")
-        else:
-            st.write("Haz clic en el botón para generar el análisis de tendencias.")
-
-    # Pestaña 4: Estadísticas
-    with tab4:
-        st.header("Estadísticas Detalladas")
-        
-        # Resumen estadístico completo
-        st.subheader("Resumen Estadístico por Categoría")
-        df_stats_completo = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].describe()
-        df_stats_completo = df_stats_completo.rename_axis('Categoría')
-        st.dataframe(df_stats_completo, use_container_width=True)
-        
-        # Análisis de outliers
-        st.subheader("Detección de Valores Atípicos")
-        
-        # Detectar índices de outliers agrupados por categoría
-        def get_outlier_indices(group):
-            return detectar_outliers(group[tipo_propiedad])
-        
-        # Aplicar la detección de outliers y obtener los índices
-        outliers_indices = df_filtrado.groupby('categoria_nombre', group_keys=False).apply(
-            get_outlier_indices, include_groups=False
-        )
-        
-        # Aplanar la lista de índices
-        outlier_indices_list = []
-        for indices in outliers_indices:
-            if not indices.empty:
-                outlier_indices_list.extend(indices.tolist())
-        
-        if outlier_indices_list:
-            outliers_df = df_filtrado.loc[outlier_indices_list, ['categoria_nombre', tipo_propiedad, 'fecha']].rename(columns={
-                'categoria_nombre': 'Categoría',
-                tipo_propiedad: 'Valor [$]',
-                'fecha': 'Fecha'
-            })
-            outliers_df['Fecha'] = outliers_df['Fecha'].dt.strftime('%Y-%m')
-            outliers_df = outliers_df.rename_axis('Índice (Valor interno)')
-            st.dataframe(outliers_df, use_container_width=True)
-        else:
-            st.write("No se encontraron valores atípicos significativos.")
-
-        # Análisis Estadístico
-        if st.button("Generar Análisis Estadístico con IA"):
-            with st.spinner("Analizando datos con IA..."):
-                try:
-                    data_to_send = df_filtrado[[tipo_propiedad, 'categoria_nombre']]
-                    prompt = "Proporciona un análisis estadístico de las tarifas de energía en los datos proporcionados. Comenta sobre las distribuciones, la variabilidad y cualquier valor atípico. Además, intenta identificar y explicar posibles razones o factores que podrían estar causando estos valores atípicos, considerando el contexto de las categorías y los datos disponibles. Responde siempre en español."
-                    analysis = call_ia_model(data_to_send, prompt)
-                    with st.expander("Ver análisis estadístico"):
-                        st.markdown(analysis)
-                except Exception:
-                    st.error("Tenemos un error al procesar su solicitud. Limita la cantidad de datos.")
-        else:
-            st.write("Haz clic en el botón para generar el análisis estadístico.")
+            except Exception:
+                st.error("Tenemos un error al procesar su solicitud. Limita la cantidad de datos.")
+    else:
+        st.write("Haz clic en el botón para generar el análisis estadístico.")
 
     # Pestaña 5: Análisis Inteligente
     with tab5:
@@ -561,34 +565,45 @@ else:
             st.write(f"🔍 {insight}")
 
     # Pestaña 6: Predicción de Tarifas
-    with tab6:
-        st.header("🔮 Predicción de Tarifas")
-        prediccion = predecir_tarifas(df_filtrado, tipo_propiedad)
-        fig_pred = px.line(
-            prediccion,
-            x='ds',
-            y='yhat',
-            title="Predicción de Tarifas Energéticas",
-            labels={'ds': 'Fecha', 'yhat': 'Tarifa Predicha (COP)'}
-        )
-        st.plotly_chart(fig_pred, use_container_width=True)
-        
-        # Tomar la fecha actual automáticamente
-        fecha_actual = pd.to_datetime(datetime.now().date())
-        proximo_mes = fecha_actual + pd.offsets.MonthEnd(1) + pd.offsets.MonthBegin(1)
-        # pred_proximo_mes = prediccion[prediccion['ds'].dt.to_pydatetime() >= np.array(proximo_mes)].iloc[0]
-        pred_proximo_mes = prediccion[prediccion['ds'] >= proximo_mes].iloc[0]
-        locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
-        tarifa_predicha = pred_proximo_mes['yhat']
-        fecha_predicha = pred_proximo_mes['ds'].strftime('%B %Y').capitalize()
-        
-        # Mostrar etiqueta con la predicción
-        st.markdown(
-            f"<span style='background-color: #000000; padding: 5px 10px; border-radius: 5px; font-size: 14px;'>"
-            f"Predicción para {fecha_predicha}: ${tarifa_predicha:,.2f} COP"
-            f"</span>",
-            unsafe_allow_html=True
-        )
+with tab6:
+    st.header("🔮 Predicción de Tarifas")
+    prediccion = predecir_tarifas(df_filtrado, tipo_propiedad)
+    fig_pred = px.line(
+        prediccion,
+        x='ds',
+        y='yhat',
+        title="Predicción de Tarifas Energéticas",
+        labels={'ds': 'Fecha', 'yhat': 'Tarifa Predicha (COP)'}
+    )
+    st.plotly_chart(fig_pred, use_container_width=True)
+    
+    # Tomar la fecha actual automáticamente
+    fecha_actual = pd.to_datetime(datetime.now().date())
+    proximo_mes = fecha_actual + pd.offsets.MonthEnd(1) + pd.offsets.MonthBegin(1)
+    pred_proximo_mes = prediccion[prediccion['ds'] >= proximo_mes].iloc[0]
+    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+    tarifa_predicha = pred_proximo_mes['yhat']
+    fecha_predicha = pred_proximo_mes['ds'].strftime('%B %Y').capitalize()
+    
+    # Mostrar etiqueta con la predicción
+    st.markdown(
+        f"<span style='background-color: #000000; padding: 5px 10px; border-radius: 5px; font-size: 14px;'>"
+        f"Predicción para {fecha_predicha}: ${tarifa_predicha:,.2f} COP"
+        f"</span>",
+        unsafe_allow_html=True
+    )
+
+    # Análisis de Predicción con IA
+    st.subheader("Análisis de Predicción con Inteligencia Artificial")
+    if st.button("Generar Análisis de Predicción con IA"):
+        with st.spinner("Analizando datos con IA..."):
+            data_to_send = prediccion[['ds', 'yhat']]
+            prompt = "Analiza la predicción de las tarifas de energía en los datos proporcionados. Identifica las tendencias clave y cualquier cambio significativo en las tarifas predichas. Responde siempre en español."
+            analysis = call_ia_model(data_to_send, prompt)
+            with st.expander("Ver análisis de predicción"):
+                st.markdown(analysis)
+    else:
+        st.write("Haz clic en el botón para generar el análisis de predicción.")
 
     # Métricas clave en el footer
     st.markdown("---")
