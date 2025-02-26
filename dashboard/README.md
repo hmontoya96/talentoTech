@@ -1,0 +1,1 @@
+Para inicar el proyecto en local, toca streamlit run app.py 
