@@ -566,7 +566,7 @@ with tab4:
         for insight in insights:
             st.write(f"🔍 {insight}")
 
-    # Pestaña 6: Predicción de Tarifas
+# Pestaña 6: Predicción de Tarifas
 with tab6:
     st.header("🔮 Predicción de Tarifas")
     prediccion = predecir_tarifas(df_filtrado, tipo_propiedad)
@@ -580,12 +580,29 @@ with tab6:
     st.plotly_chart(fig_pred, use_container_width=True)
     
     # Tomar la fecha actual automáticamente
+    # fecha_actual = pd.to_datetime(datetime.now().date())
+    # proximo_mes = fecha_actual + pd.offsets.MonthEnd(1) + pd.offsets.MonthBegin(1)
+    # pred_proximo_mes = prediccion[prediccion['ds'] >= proximo_mes].iloc[0]
+    # locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
+    # tarifa_predicha = pred_proximo_mes['yhat']
+    # fecha_predicha = pred_proximo_mes['ds'].strftime('%B %Y').capitalize()
+
+    # Mapeo manual de los nombres de los meses en español
+    meses = {
+        "January": "Enero", "February": "Febrero", "March": "Marzo",
+        "April": "Abril", "May": "Mayo", "June": "Junio",
+        "July": "Julio", "August": "Agosto", "September": "Septiembre",
+        "October": "Octubre", "November": "Noviembre", "December": "Diciembre"
+    }
+
+    # Tomar la fecha actual automáticamente
     fecha_actual = pd.to_datetime(datetime.now().date())
     proximo_mes = fecha_actual + pd.offsets.MonthEnd(1) + pd.offsets.MonthBegin(1)
     pred_proximo_mes = prediccion[prediccion['ds'] >= proximo_mes].iloc[0]
-    locale.setlocale(locale.LC_TIME, 'es_ES.UTF-8')
     tarifa_predicha = pred_proximo_mes['yhat']
-    fecha_predicha = pred_proximo_mes['ds'].strftime('%B %Y').capitalize()
+
+    # Convertir la fecha al formato en español sin usar locale
+    fecha_predicha = meses[pred_proximo_mes['ds'].strftime('%B')] + pred_proximo_mes['ds'].strftime(' %Y')
     
     # Mostrar etiqueta con la predicción
     st.markdown(
@@ -607,73 +624,73 @@ with tab6:
     else:
         st.write("Haz clic en el botón para generar el análisis de predicción.")
 
-    # Métricas clave en el footer
-    st.markdown("---")
-    col1, col2, col3, col4 = st.columns(4)
+# Métricas clave en el footer
+st.markdown("---")
+col1, col2, col3, col4 = st.columns(4)
 
-    with col1:
-        st.metric(
-            "Tarifa Promedio",
-            f"${df_filtrado[tipo_propiedad].mean():.2f}",
-            f"{df_filtrado[tipo_propiedad].pct_change().mean()*100:.1f}%"
-        )
+with col1:
+    st.metric(
+        "Tarifa Promedio",
+        f"${df_filtrado[tipo_propiedad].mean():.2f}",
+        f"{df_filtrado[tipo_propiedad].pct_change().mean()*100:.1f}%"
+    )
 
-    with col2:
-        st.metric(
-            "Tarifa Máxima",
-            f"${df_filtrado[tipo_propiedad].max():.2f}",
-            f"Categoría: {df_filtrado.loc[df_filtrado[tipo_propiedad].idxmax(), 'categoria_nombre']}"
-        )
+with col2:
+    st.metric(
+        "Tarifa Máxima",
+        f"${df_filtrado[tipo_propiedad].max():.2f}",
+        f"Categoría: {df_filtrado.loc[df_filtrado[tipo_propiedad].idxmax(), 'categoria_nombre']}"
+    )
 
 
-    with col3:
-        # Variación máxima mensual y su mes correspondiente
-        variacion_mensual = df_filtrado.groupby('fecha')[tipo_propiedad].mean().pct_change() * 100
-        max_variacion_idx = variacion_mensual.idxmax()
-        st.metric(
-            "Mayor Variación Mensual",
-            f"{variacion_mensual.max():.1f}%",
-            f"Mes: {max_variacion_idx.strftime('%b %Y')}"
-        )
+with col3:
+    # Variación máxima mensual y su mes correspondiente
+    variacion_mensual = df_filtrado.groupby('fecha')[tipo_propiedad].mean().pct_change() * 100
+    max_variacion_idx = variacion_mensual.idxmax()
+    st.metric(
+        "Mayor Variación Mensual",
+        f"{variacion_mensual.max():.1f}%",
+        f"Mes: {max_variacion_idx.strftime('%b %Y')}"
+    )
 
-    with col4:
-        # Categoría con mayor volatilidad (desviación estándar)
-        volatilidad = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].std()
-        categoria_volatil = volatilidad.idxmax()
-        st.metric(
-            "Categoría Más Volátil",
-            categoria_volatil,
-            f"Desv. Est.: {volatilidad.max():,.2f}"
-        )
+with col4:
+    # Categoría con mayor volatilidad (desviación estándar)
+    volatilidad = df_filtrado.groupby('categoria_nombre')[tipo_propiedad].std()
+    categoria_volatil = volatilidad.idxmax()
+    st.metric(
+        "Categoría Más Volátil",
+        categoria_volatil,
+        f"Desv. Est.: {volatilidad.max():,.2f}"
+    )
 
-    # En el footer
-    if st.button("Descargar Datos Filtrados como CSV"):
-        csv = df_filtrado.to_csv(index=False)
-        st.download_button("Descargar", csv, "datos_tarifas.csv", "text/csv")
+# En el footer
+if st.button("Descargar Datos Filtrados como CSV"):
+    csv = df_filtrado.to_csv(index=False)
+    st.download_button("Descargar", csv, "datos_tarifas.csv", "text/csv")
 
-    # Información adicional
-    st.markdown("---")
-    st.markdown("""
-        #### Notas:
-        - Los datos mostrados corresponden a las tarifas energéticas históricas.
-        - Todas las tarifas están en pesos colombianos (COP).
-        - Los análisis incluyen variaciones porcentuales y tendencias temporales.
-        - Se ha utilizado un modelo de predicción para estimar tarifas futuras.
+# Información adicional
+st.markdown("---")
+st.markdown("""
+    #### Notas:
+    - Los datos mostrados corresponden a las tarifas energéticas históricas.
+    - Todas las tarifas están en pesos colombianos (COP).
+    - Los análisis incluyen variaciones porcentuales y tendencias temporales.
+    - Se ha utilizado un modelo de predicción para estimar tarifas futuras.
+        
+    #### Glosario:
+    - **Epm:** Empresas Públicas de Medellín.
+    - **ESPD:** Empresa de Servicios Públicos Domiciliarios.
+    - **CS:** Consumo Subsidiado (0-130 kWh si ≥ 1.000 msnm | 0-173 kWh si < 1.000 msnm), consumo excedente paga tarifa plena.
             
-        #### Glosario:
-        - **Epm:** Empresas Públicas de Medellín.
-        - **ESPD:** Empresa de Servicios Públicos Domiciliarios.
-        - **CS:** Consumo Subsidiado (0-130 kWh si ≥ 1.000 msnm | 0-173 kWh si < 1.000 msnm), consumo excedente paga tarifa plena.
-                
-        #### Tarifa Horaria:
-        - **Punta:** 9 a.m.-12 m - 6-9 p.m.
-        - **Fuera de punta:** 0-9 a.m. - 12 m | 6 p.m. - 9 p.m.-12 p.m.
-                
-        #### Acerca de:
-        - **Desarrollado por:** Los Tarifarios.     
-    """)
+    #### Tarifa Horaria:
+    - **Punta:** 9 a.m.-12 m - 6-9 p.m.
+    - **Fuera de punta:** 0-9 a.m. - 12 m | 6 p.m. - 9 p.m.-12 p.m.
+            
+    #### Acerca de:
+    - **Desarrollado por:** Los Tarifarios.     
+""")
 
-    # Botón para limpiar caché
-    if st.button('Limpiar Cache'):
-        st.cache_data.clear()
-        st.success('Cache limpiado exitosamente')
+# Botón para limpiar caché
+if st.button('Limpiar Cache'):
+    st.cache_data.clear()
+    st.success('Cache limpiado exitosamente')
