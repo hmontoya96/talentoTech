@@ -6,3 +6,4 @@ sqlalchemy
 prophet
 python-dotenv
 google-generativeai
+mysql-connector-python
