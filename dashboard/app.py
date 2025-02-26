@@ -16,6 +16,8 @@ import google.generativeai as genai
 from google.api_core import exceptions
 import json
 
+#Sagy
+
 # Configuración inicial de la página
 st.set_page_config(
     page_title="Análisis de Tarifas Energéticas",
